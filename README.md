@@ -3,7 +3,7 @@
 ![Kaggle](https://img.shields.io/badge/Kaggle-035a7d?style=for-the-badge&logo=kaggle&logoColor=white)
 ![solar](static/solar.png)
 
-# Solar-Power-Prediction-R
+# Outcomes Prediction of Regression and Classification Problems Based On a Machine Learning Model; Random Foresst By Using R Programming for Solar Power Generation Dataset.
 Trained Random Forest model using R programming language for two problems; regression and classification based on the solar power generation that was compiled by Ph.D. candidate Alexandra Constantin.
 
 ## Introduction
