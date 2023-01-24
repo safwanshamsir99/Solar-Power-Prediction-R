@@ -1,0 +1,295 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# **Title: Prediction of Solar Power System Based On Regression and Classification Problem.**
+
+## Introduction
+
+Solar power systems, also known as photovoltaic (PV) systems, are a popular choice for generating clean, renewable energy as they use solar panels to convert sunlight into electricity. These systems can be used for a variety of applications, making them an efficient and cost-effective source of electricity. In recent years, the development of solar power technology has been an active area of research and innovation, with efforts focused on improving the efficiency of solar power systems.
+
+There are several factors that impact the efficiency of solar power systems, including the size and type of the system, the location and weather conditions, and the efficiency of the solar panels. The type and size of the solar power system are important considerations, as different systems are suited for different applications. For example, large systems may be more suitable for commercial or industrial applications, while small systems may be more suitable for residential use. The location and weather conditions also play a role in the efficiency of solar power systems, as the amount of sunlight received can vary significantly depending on the location and time of year. Finally, the efficiency of the solar panels themselves is an important factor, as more efficient panels can produce more electricity from the same amount of sunlight.
+
+## Objective
+
+The objectives of the project are as follows:
+
+- Identify the correlations between the available features and solar power generation: By analyzing the data and determining which factors have the most significant impact on solar power generation, we can better understand how to optimize the performance of a solar power system.
+
+- Predict the output of a solar power system based on past performance: By using machine learning algorithms and historical data, we can develop a model that accurately predicts the output of a solar power system based on various input parameters. This can help optimize the performance and efficiency of the system and make informed decisions about its operation and maintenance.
+
+## Load Library
+``` {r}
+library(dplyr) 
+library(graphics)
+library(stats) # install reshape2 library
+library(reshape2) 
+library(ggplot2) # for visualization
+library(tidyr)
+```
+
+## **Data Import & Exploration**
+
+We begin by importing the dataset and inspecting its contents.
+
+``` {r}
+    solar <- read.csv("solar.csv") # import the dataset
+    View(solar) # inspect the dataframe table
+    str(solar) # check the data types of the columns
+    names(solar) # check the names of the columns
+    summary(solar) # check the statistical summary for each column
+```
+
+Next, we perform some data cleaning to ensure that the data is usable for analysis.
+
+``` {r}
+print(sum(duplicated(solar))) # check for duplicated rows
+
+# check for null values
+solar %>% summarise_all(funs(sum(is.na(.))))
+# remove rows with null values
+solar <- solar[complete.cases(solar),]
+```
+
+We can also visualize the data using boxplots to check for outliers.
+
+``` {r}
+#create a new var for boxplot plotting, since some modification unique to this plot is needed
+solar_bp<-solar
+
+#pivot the df so that an a col with the feature names exist
+solar_bp<-solar_bp %>% select(Average.Temperature..Day., Average.Wind.Direction..Day., Average.Wind.Speed..Day., Average.Wind.Speed..Period.,Power.Generated) %>% pivot_longer(., cols = c(Average.Temperature..Day., Average.Wind.Direction..Day., Average.Wind.Speed..Day., Average.Wind.Speed..Period.,Power.Generated), names_to = "Var", values_to = "Val")
+
+#plot a facet box plot with free y axis scale. Removed the x axis labels to avoid clashing texts
+ggplot(solar_bp,aes(x=Var,y=Val))+geom_boxplot()+facet_wrap(~solar_bp$Var,scales="free_y")+theme(axis.text.x=element_blank())
+```
+
+## **Data Visualization**
+
+To understand the factors that influence solar energy generation, we can compute the correlations between the different features and the output (Power.Generated).
+
+``` {r}
+con_data <-c('Day.of.Year','Year','Month','Day','Distance.to.Solar.Noon','Average.Temperature..Day.','Average.Wind.Direction..Day.','Average.Wind.Speed..Day.','Visibility','Relative.Humidity','Average.Wind.Speed..Period.','Average.Barometric.Pressure..Period.','Power.Generated')
+cat_data <-c('First.Hour.of.Period','Is.Daylight','Sky.Cover')
+solar_condata <- select(solar, con_data)
+solar_catdata <- select(solar, cat_data)
+
+```
+
+### For eda visualization purposes
+We can plot the continuous data using histograms and density plots.
+
+``` {r}
+hist(solar_condata$Power.Generated, main = "Power.Generated", xlab = "Power.Generated")
+density(solar_condata$Power.Generated, main = "Power.Generated", xlab = "Power.Generated")
+
+d <- density(solar_condata$Power.Generated)
+plot(d, main = "Power.Generated")
+polygon(d, col = "red", border = "blue")
+
+solar_condata_value <- solar_condata
+for (con in 1:length(solar_condata)) {
+    nd_condata <- ggplot(data = solar, aes(x = solar_condata_value[,con])) +
+        geom_bar(fill = "purple") +
+        ggtitle("The Normal Distribution of Features") +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        labs(x = con_data[con])
+    print(nd_condata)
+}
+
+boxplot(solar_condata$Power.Generated, main = "Boxplot of Power Generated")
+```
+
+## **Data Preparation** 
+### Label encoding & Normalization
+``` {r}
+# Convert the logical vector to numeric (label encoding purpose)
+solar$Is.Daylight <- ifelse(solar$Is.Daylight == TRUE, 1, 0)
+
+# normalization process
+normalize<- function(x){return((x-min(x))/ (max(x) - min(x)))}
+normalize(c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16))
+solar_n<-as.data.frame(lapply(solar[,c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)], normalize))
+```
+
+## **Regression Problem**
+### 1. Features Selection for regression problem (Predict Power.Generated)
+
+``` {r}
+# Correlation
+regression_solar <- cor(solar_n, solar_n$Power.Generated)
+ggplot(melt(regression_solar), aes(x=Var1, y='Power.Generated', fill=value)) +
+  geom_tile(color="white") +
+  geom_text(aes(label=round(value, 2)), color="black", size=3) +
+  scale_fill_gradient(low="white", high="steelblue", name="Correlation",
+                      limits=c(-1, 1), breaks=seq(-1, 1, by=0.2),
+                      labels=seq(-1, 1, by=0.2), guide=guide_colorbar(barheight=15, barwidth=1,
+                                                                      title.position = "top", title.hjust=0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Since most the correlation of these features are quite low when compared to the target features(Power.Generated) due to the scale of every features values, therefore we are going to select all of the features to make a prediction, but we will drop some of the features that are not really important to the target output. 
+
+``` {r}
+# Features selection
+regression_features <-c('Year','First.Hour.of.Period','Is.Daylight','Distance.to.Solar.Noon','Average.Temperature..Day.','Average.Wind.Direction..Day.','Average.Wind.Speed..Day.','Sky.Cover','Relative.Humidity','Average.Wind.Speed..Period.')
+solar_regression <-solar_n[,regression_features]
+```
+
+### 2. Train test split (Predict Power.Generated)
+
+``` {r}
+# train_test_split solar dataframe
+library(dplyr)
+X_r <- solar_regression #features
+y_r <- solar_n %>% select(Power.Generated) #target
+set.seed(42)
+# Load the caret package
+library(caret)
+indices_r <- createDataPartition(solar_n$Power.Generated, p = 0.7, list = FALSE) # 70% training 30 % testing
+
+# Create the x training set
+x_train_r <- X_r[indices_r, ]
+
+# Create the x test set
+x_test_r <- X_r[-indices_r, ]
+
+# Create the y training set
+y_train_r <- y_r[indices_r, ]
+
+# Create the y test set
+y_test_r <- y_r[-indices_r, ]
+```
+
+### 3. Machine learning development
+The machine learning that we plan to use in our project is Random Forest.
+``` {r}
+library(randomForest)
+modelRF_r <- randomForest(x_train_r, y_train_r, ntree = 100)
+y_pred_rf_r <- predict(modelRF_r, x_test_r)
+# Check the model's performance on the test data
+rf_model_r <- cor(y_pred_rf_r, y_test_r)^2
+print(rf_model_r)
+plot(y_test_r,y_pred_rf_r)
+```
+
+### 4. Machine learning evaluation
+The machine learning that we use will be evaluated by using MAE, RMSLE, and RMSE.
+``` {r}
+library(Metrics)
+
+# Evaluation metrics
+rf_mae_valid_r <- mae(y_test_r, y_pred_rf_r)
+rf_rmsle_valid_r <- rmsle(y_test_r, y_pred_rf_r)
+rf_rmse_valid_r <- rmse(y_test_r, y_pred_rf_r)
+
+# Print the evaluation metrics
+cat("RF - MAE      Valid:", rf_mae_valid_r, "\n")
+cat("RF - RMSE      Valid:", rf_rmse_valid_r, "\n")
+cat("RF - RMSLE    Valid:", rf_rmsle_valid_r, "\n")
+```
+
+## **Classification Problem**
+### 1. Features Selection for classification problem (Predict Is.Daylight)
+``` {r}
+# Correlation
+class_solar <- cor(solar_n, solar_n$Is.Daylight)
+ggplot(melt(class_solar), aes(x=Var1, y='Is.Daylight', fill=value)) +
+  geom_tile(color="white") +
+  geom_text(aes(label=round(value, 2)), color="black", size=3) +
+  scale_fill_gradient(low="white", high="steelblue", name="Correlation",
+                      limits=c(-1, 1), breaks=seq(-1, 1, by=0.2),
+                      labels=seq(-1, 1, by=0.2), guide=guide_colorbar(barheight=15, barwidth=1,
+                                                                      title.position = "top", title.hjust=0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Since most the correlation of these features are quite low when compared to the target features(Is.Daylight) due to the scale of every features values, therefore we are going to select all of the features to make a prediction first, but drop some of the features that are not really related to the target output. 
+
+``` {r}
+# Features selection
+class_features <-c('Year','First.Hour.of.Period','Distance.to.Solar.Noon','Average.Temperature..Day.','Average.Wind.Direction..Day.','Average.Wind.Speed..Day.','Sky.Cover','Relative.Humidity','Average.Wind.Speed..Period.','Power.Generated')
+solar_class <-solar_n[,class_features]
+```
+
+### 2. Train test split (Predict Is.Daylight)
+``` {r}
+# train_test_split solar dataframe
+library(dplyr)
+X_c <- solar_class #features
+y_c <- solar_n %>% select(Is.Daylight) #target
+set.seed(221)
+# Load the caret package
+library(caret)
+indices_c <- createDataPartition(solar_n$Is.Daylight, p = 0.7, list = FALSE) # 70% training 30 % testing
+
+# Create the x training set
+x_train_c <- X_c[indices_c, ]
+
+# Create the x test set
+x_test_c <- X_c[-indices_c, ]
+
+# Create the y training set
+y_train_c <- y_c[indices_c, ]
+
+# Create the y test set
+y_test_c <- y_c[-indices_c, ]
+
+#convert y to factors
+y_test_c=factor(y_test_c,levels=c(0,1))
+y_train_c=factor(y_train_c,levels=c(0,1))
+```
+
+### 3. Machine learning development
+The machine learning that we plan to use in our project is Random Forest.
+``` {r}
+library(randomForest)
+modelRF_c <- randomForest(x_train_c, y_train_c, ntree = 100,proximity=F)
+y_pred_rf_c <- predict(modelRF_c, x_test_c)
+# Check the model's performance on the test data
+y_pred_rf_c=as.numeric(as.character(y_pred_rf_c))
+y_test_c=as.numeric(as.character(y_test_c))
+rf_model_c <- cor(y_pred_rf_c, y_test_c)^2
+print(rf_model_c)
+```
+
+### 4. Machine learning evaluation
+The machine learning that we use will be evaluated by using f1, precision, recall and AUC.
+``` {r}
+library(Metrics)
+library(cvms)
+library(tibble)
+
+# Evaluation metrics
+rf_f1_valid <- f1(y_test_c, y_pred_rf_c)
+rf_precise_valid <- precision(y_test_c, y_pred_rf_c)
+rf_auc_valid <- auc(y_test_c, y_pred_rf_c)
+rf_recall_valid <- recall(y_test_c, y_pred_rf_c)
+
+# Print the evaluation metrics
+cat("RF - F1      Valid:", rf_f1_valid, "\n")
+cat("RF - PRECISE      Valid:", rf_precise_valid, "\n")
+cat("RF - AUC      Valid:", rf_auc_valid, "\n")
+cat("RF - RECALL    Valid:", rf_recall_valid, "\n")
+
+#Confusion Matrix
+d_binomial <- tibble("target" = y_test_c,
+                     "prediction" = y_pred_rf_c)
+basic_table <- table(d_binomial)
+cfm <- as_tibble(basic_table)
+
+plot_confusion_matrix(cfm, 
+                      target_col = "target", 
+                      prediction_col = "prediction",
+                      counts_col = "n")
+```
+
+## **Conclusion**
+
+In conclusion, we have successfully carried out a number of data exploration and visualization techniques in order to better understand and prepare for the data analysis. These techniques are crucial for gaining insights into the characteristics and patterns of the data, and can inform the next steps in the data analysis process. Specifically, we have imported and cleaned the data, and have used correlation analysis, normal distribution plots, and boxplots to explore the data. These techniques have allowed us to identify potential trends and relationships within the data, and identify key features that may be relevant to predict the solar power generation.
+
+Based on the outcome of machine learning development and evaluation via Random Forest, the model is able to accurately predict the Power.Generated and Is.Daylight with accuracy score of 93% and 99% respectively for both regression and classification problem. In reference to the model evaluation, the model indicates very low MAE, RMSLE and RMSE (< 0.1) for regression problem and >0.99 for F1, AUC, Precision and Recall for classification problem. 
+
+Hence, it can be summarised that adoption of Random Forest is successful in predicting the output of a solar power system and can be used to improve the performance and efficiency of solar power systems in the future.
