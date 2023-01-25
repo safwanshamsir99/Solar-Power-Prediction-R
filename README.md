@@ -35,7 +35,8 @@ There are several factors that impact the efficiency of solar power systems, inc
 ## Discussion
 1. Based on the outcome of machine learning development and evaluation via Random Forest, the model is able to accurately predict the Power.Generated and Is.Daylight with accuracy score of 93% and 99% respectively for both regression and classification problem. In reference to the model evaluation, the model indicates very low MAE, RMSLE and RMSE (< 0.1) for regression problem and >0.99 for F1, AUC, Precision and Recall for classification problem. 
 2. The adoption of Random Forest ifor both of regression and classification problem are considered successful in predicting the target output and can be used to improve the performance and efficiency of solar power systems in the future. 
-3. This project documentation has been published in RPubs.
+3. This project documentation has been published in RPubs:
+[Link for RPubs](https://rpubs.com/safwanshamsir/994854)
 
 ![rpubs](static/rpubs.PNG)
 
